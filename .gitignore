@@ -1,0 +1,12 @@
+build/
+dist/
+*.spec
+__pycache__/
+desktop.ini
+tempCodeRunnerFile.py
+PureStudyTimer2.py
+PureStudyTimer3.py
+PureStudyTimer4.py
+PureStudyTimer5.py
+PureStudyTimer6.py
+PureStudyTimer7.py
