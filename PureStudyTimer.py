@@ -10,13 +10,11 @@ class UltimateStudyTimer:
     def __init__(self, root):
         self.root = root
         
-        # --- [버전 업데이트] v1.2.4: 점멸 효과 제거 및 소리 알림 전용 ---
-        self.version = "1.2.4" 
+        # --- [버전 업데이트] v1.3.0: 미니미 이동 핸들 시각화 ---
+        self.version = "1.3.0" 
         self.root.title(f"순공 & 공놀 & 여가 측정기 v{self.version}")
-        
         self.save_file = "save_data.json"
         
-        # 기본 변수 초기화
         self.is_mini_mode = False
         self.day_start_hour = tk.StringVar(value="6")
         self.alert_interval_input = tk.StringVar(value="300")
@@ -35,39 +33,38 @@ class UltimateStudyTimer:
 
         self.offset_x, self.offset_y = 0, 0
 
-        # 데이터 및 설정값 불러오기
         self.load_data()
 
         self.main_frame = tk.Frame(self.root)
         self.main_frame.pack(fill="both", expand=True)
         self.mini_frame = tk.Frame(self.root, bg="#2c3e50")
 
+        # Grip 핸들 생성
+        self.grip = tk.Label(self.root, text="◢", font=("Helvetica", 8), fg="#95a5a6", bg="#2c3e50", cursor="size_nw_se")
+
         self.setup_main_ui()
         self.setup_mini_ui()
         
         self.root.geometry("340x530")
         self.root.resizable(False, False) 
+        
         self.root.bind("<Configure>", self.on_main_window_move)
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         self.update_clock()
 
-    # --- 데이터 및 설정 저장 ---
     def save_data(self):
+        """기록 및 설정 저장"""
         data = {
-            "study_seconds": self.study_seconds,
-            "ps_seconds": self.ps_seconds,
-            "leisure_seconds": self.leisure_seconds,
-            "first_start_time": self.first_start_time,
-            "applied_interval": self.applied_interval,
-            "day_start_hour": self.day_start_hour.get(),
-            "last_saved_date": datetime.now().strftime("%Y-%m-%d")
+            "study_seconds": self.study_seconds, "ps_seconds": self.ps_seconds, "leisure_seconds": self.leisure_seconds,
+            "first_start_time": self.first_start_time, "applied_interval": self.applied_interval,
+            "day_start_hour": self.day_start_hour.get(), "last_saved_date": datetime.now().strftime("%Y-%m-%d")
         }
         with open(self.save_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
-    # --- 데이터 및 설정 불러오기 ---
     def load_data(self):
+        """저장된 데이터 불러오기"""
         if os.path.exists(self.save_file):
             try:
                 with open(self.save_file, "r", encoding="utf-8") as f:
@@ -80,7 +77,7 @@ class UltimateStudyTimer:
                     self.ps_seconds = data.get("ps_seconds", 0)
                     self.leisure_seconds = data.get("leisure_seconds", 0)
                     self.first_start_time = data.get("first_start_time")
-            except: pass
+            except Exception: pass
 
     def on_closing(self):
         if self.running_type: self.stop_current_timer()
@@ -125,11 +122,22 @@ class UltimateStudyTimer:
         tk.Button(f, text="초기화", command=lambda: self.reset_timer(t_type), width=18, bg="#95a5a6", fg="white", font=("Helvetica", 8)).pack(pady=2)
 
     def setup_mini_ui(self):
+        """미니미 상단 드래그 핸들 추가"""
+        self.mini_drag_bar = tk.Frame(self.mini_frame, bg="#34495e", height=10)
+        self.mini_drag_bar.pack(side="top", fill="x")
+        tk.Label(self.mini_drag_bar, text="⁝⁝⁝", font=("Helvetica", 6), fg="#bdc3c7", bg="#34495e").pack()
+
+        self.mini_btn_f = tk.Frame(self.mini_frame, bg="#2c3e50")
+        self.mini_btn_f.pack(side="bottom", fill="x", pady=2)
+        tk.Button(self.mini_btn_f, text="복귀", command=self.toggle_minimi, 
+                  font=("Helvetica", 9, "bold"), bg="#7f8c8d", fg="white", padx=5).pack(side="left", padx=10)
+        
         for t, c in [("study", "#2ecc71"), ("ps", "#9b59b6"), ("leisure", "#3498db")]:
             lbl = tk.Label(self.mini_frame, text=f"{t[0].upper()} 0:00:00", font=("Consolas", 10, "bold"), fg=c, bg="#2c3e50")
-            lbl.pack(fill="x"); setattr(self, f"mini_{t}_lbl", lbl)
-        tk.Button(self.mini_frame, text="복귀", command=self.toggle_minimi, font=("Helvetica", 8), bg="#7f8c8d", fg="white").pack(pady=1)
-        for w in [self.mini_frame] + list(self.mini_frame.winfo_children()):
+            lbl.pack(fill="both", expand=True); setattr(self, f"mini_{t}_lbl", lbl)
+        
+        self.grip.bind("<Button-1>", self.start_resize); self.grip.bind("<B1-Motion>", self.on_resize)
+        for w in [self.mini_frame, self.mini_btn_f, self.mini_drag_bar]:
             w.bind("<Button-1>", self.start_move); w.bind("<B1-Motion>", self.on_move)
 
     def start_move(self, event): self.offset_x, self.offset_y = event.x, event.y
@@ -137,14 +145,26 @@ class UltimateStudyTimer:
         x, y = self.root.winfo_x() + (event.x - self.offset_x), self.root.winfo_y() + (event.y - self.offset_y)
         self.root.geometry(f"+{x}+{y}")
 
+    def start_resize(self, event):
+        self.start_w, self.start_h = self.root.winfo_width(), self.root.winfo_height()
+        self.start_mouse_x, self.start_mouse_y = event.x_root, event.y_root
+
+    def on_resize(self, event):
+        new_w, new_h = max(120, self.start_w + (event.x_root - self.start_mouse_x)), max(100, self.start_h + (event.y_root - self.start_mouse_y))
+        self.root.geometry(f"{new_w}x{new_h}")
+        new_font_size = max(8, int(new_w / 14))
+        for t in ["study", "ps", "leisure"]: getattr(self, f"mini_{t}_lbl").config(font=("Consolas", new_font_size, "bold"))
+
     def toggle_minimi(self):
         self.root.withdraw()
         if not self.is_mini_mode:
             self.main_frame.pack_forget(); self.mini_frame.pack(fill="both", expand=True)
-            self.root.overrideredirect(True); self.root.geometry("140x85"); self.is_mini_mode = True
+            self.root.overrideredirect(True); self.root.geometry("140x110"); self.is_mini_mode = True
+            self.grip.place(relx=1.0, rely=1.0, anchor="se") 
         else:
             self.mini_frame.pack_forget(); self.main_frame.pack(fill="both", expand=True)
             self.root.overrideredirect(False); self.root.geometry("340x530"); self.is_mini_mode = False
+            self.grip.place_forget() 
         self.root.deiconify(); self.root.attributes("-topmost", self.always_on_top_var.get())
 
     def start_timer(self, t_type):
@@ -171,7 +191,7 @@ class UltimateStudyTimer:
             val = getattr(self, f"{self.running_type}_seconds") + 1
             setattr(self, f"{self.running_type}_seconds", val)
             if self.applied_interval > 0 and val % self.applied_interval == 0:
-                self.trigger_alert()
+                threading.Thread(target=lambda: winsound.Beep(2000, 500), daemon=True).start()
         if (self.study_seconds + self.ps_seconds + self.leisure_seconds) % 60 == 0: self.save_data()
         self.update_labels(); self.root.after(1000, self.update_clock)
 
@@ -180,15 +200,11 @@ class UltimateStudyTimer:
         self.main_study_lbl.config(text=s); self.main_ps_lbl.config(text=ps); self.main_leisure_lbl.config(text=l)
         self.mini_study_lbl.config(text=f"S {s}"); self.mini_ps_lbl.config(text=f"P {ps}"); self.mini_leisure_lbl.config(text=f"L {l}")
 
-    # --- [수정] 점멸 효과 제거, 소리만 재생 ---
-    def trigger_alert(self):
-        threading.Thread(target=lambda: winsound.Beep(2000, 500), daemon=True).start()
-
     def apply_alert_settings(self):
         try:
             self.applied_interval = int(self.alert_interval_input.get()); self.save_data()
             messagebox.showinfo("알림", f"{self.applied_interval}초마다 알림 설정됨")
-        except: messagebox.showerror("오류", "숫자만 입력")
+        except: messagebox.showerror("오류", "숫자만 입력하세요.")
 
     def toggle_always_on_top(self): self.root.attributes("-topmost", self.always_on_top_var.get())
 
@@ -204,7 +220,8 @@ class UltimateStudyTimer:
             self.study_log_window = self.ps_log_window = self.leisure_log_window = None
 
     def create_log_ui(self, l_type, title, color, y_off):
-        w = tk.Toplevel(self.root); w.overrideredirect(True); w.config(highlightbackground=color, highlightthickness=2); w.geometry("320x170")
+        w = tk.Toplevel(self.root); w.overrideredirect(True)
+        w.config(highlightbackground=color, highlightthickness=2); w.geometry("320x170")
         tk.Label(w, text=f"[{title}]", font=("Helvetica", 8, "bold"), fg=color).pack(pady=2)
         f = tk.Frame(w); f.pack(padx=5, fill="both", expand=True)
         lb = tk.Listbox(f, font=("Consolas", 9), height=6); lb.pack(side="left", fill="both", expand=True)
@@ -224,8 +241,7 @@ class UltimateStudyTimer:
 
     def delete_log_item(self, l_type, lb):
         if not lb.curselection(): return
-        target = lb.get(lb.curselection())
-        f_map = {"study": "study_log.txt", "ps": "play_study_log.txt", "leisure": "leisure_log.txt"}
+        target = lb.get(lb.curselection()); f_map = {"study": "study_log.txt", "ps": "play_study_log.txt", "leisure": "leisure_log.txt"}
         if messagebox.askyesno("삭제", "정말 삭제하시겠습니까?"):
             lines = open(f_map[l_type], "r", encoding="utf-8").readlines()
             with open(f_map[l_type], "w", encoding="utf-8") as f:
@@ -237,4 +253,6 @@ class UltimateStudyTimer:
         self.first_start_time = None; self.first_time_label.config(text="최초: --:--:--"); self.save_data()
 
 if __name__ == "__main__":
-    root = tk.Tk(); app = UltimateStudyTimer(root); root.mainloop()
+    root = tk.Tk()
+    app = UltimateStudyTimer(root)
+    root.mainloop()
