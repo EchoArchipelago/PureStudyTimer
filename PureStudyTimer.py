@@ -9,11 +9,10 @@ class UltimateStudyTimer:
     def __init__(self, root):
         self.root = root
         
-        # --- [패치 포인트 1] 버전 정보 설정 ---
-        self.version = "1.1.0" 
+        # --- 버전 정보 (v1.1.1) ---
+        self.version = "1.1.1" 
         self.root.title(f"순공 & 공놀 & 여가 측정기 v{self.version}")
         
-        # --- 데이터 및 설정 초기화 ---
         self.is_mini_mode = False
         self.day_start_hour = tk.StringVar(value="6")
         self.alert_interval_input = tk.StringVar(value="300")
@@ -32,7 +31,6 @@ class UltimateStudyTimer:
 
         self.offset_x, self.offset_y = 0, 0
 
-        # UI 프레임 구성
         self.main_frame = tk.Frame(self.root)
         self.main_frame.pack(fill="both", expand=True)
         self.mini_frame = tk.Frame(self.root, bg="#2c3e50")
@@ -40,22 +38,22 @@ class UltimateStudyTimer:
         self.setup_main_ui()
         self.setup_mini_ui()
         
-        # 레이아웃 최적화 창 크기
         self.root.geometry("340x530")
         self.root.resizable(False, False) 
         
-        # --- [패치 포인트 2] 자석 기능: 메인 창 움직임 감지 ---
+        # 메인 창 움직임 감지 이벤트
         self.root.bind("<Configure>", self.on_main_window_move)
         
         self.update_clock()
 
-    # --- 자석 로직 (창 위치 동기화) ---
+    # --- 자석 로직 ---
     def on_main_window_move(self, event):
         if event.widget == self.root and not self.is_mini_mode:
             self.refresh_log_positions()
 
     def refresh_log_positions(self):
         main_x, main_y = self.root.winfo_x(), self.root.winfo_y()
+        # 기록창 너비 확장(320)에 맞춰 위치 유지
         if self.study_log_window and tk.Toplevel.winfo_exists(self.study_log_window):
             self.study_log_window.geometry(f"+{main_x + 345}+{main_y}")
         if self.ps_log_window and tk.Toplevel.winfo_exists(self.ps_log_window):
@@ -64,7 +62,6 @@ class UltimateStudyTimer:
             self.leisure_log_window.geometry(f"+{main_x + 345}+{main_y + 360}")
 
     def setup_main_ui(self):
-        # 상단 컨트롤 바
         ctrl = tk.Frame(self.main_frame)
         ctrl.pack(fill="x", padx=10, pady=(2, 0))
         tk.Button(ctrl, text="미니미 모드", command=self.toggle_minimi, bg="#dfe4ea", font=("Helvetica", 8)).pack(side="right")
@@ -73,7 +70,6 @@ class UltimateStudyTimer:
         self.show_log_var = tk.BooleanVar(value=False)
         tk.Checkbutton(ctrl, text="기록창 표시", variable=self.show_log_var, command=self.toggle_log_windows, font=("Helvetica", 8)).pack(side="left", padx=2)
 
-        # 시스템 설정
         set_f = tk.LabelFrame(self.main_frame, text=" 설정 ", font=("Helvetica", 8), padx=10, pady=0)
         set_f.pack(fill="x", padx=10, pady=(2, 5))
         tk.Label(set_f, text="하루 시작:", font=("Helvetica", 8)).grid(row=0, column=0)
@@ -83,7 +79,6 @@ class UltimateStudyTimer:
         self.alert_entry.grid(row=0, column=3)
         tk.Button(set_f, text="확인", command=self.apply_alert_settings, font=("Helvetica", 8), padx=2, pady=0).grid(row=0, column=4, padx=5)
 
-        # 타이머 섹션
         self.create_timer_section(self.main_frame, "순공", "study", "blue", "#2ecc71", "#e74c3c")
         self.create_timer_section(self.main_frame, "공놀", "ps", "#8e44ad", "#9b59b6", "#f39c12")
         self.create_timer_section(self.main_frame, "여가", "leisure", "green", "#3498db", "#e67e22")
@@ -113,7 +108,7 @@ class UltimateStudyTimer:
         self.mini_ps_lbl.pack(pady=0, fill="x")
         self.mini_leisure_lbl = tk.Label(self.mini_frame, text="여 0:00:00", font=("Consolas", 10, "bold"), fg="#3498db", bg="#2c3e50")
         self.mini_leisure_lbl.pack(pady=0, fill="x")
-        tk.Button(self.mini_frame, text="↩", command=self.toggle_minimi, font=("Helvetica", 8), bg="#7f8c8d", fg="white", relief="flat", pady=0).pack(pady=1)
+        tk.Button(self.mini_frame, text="복귀", command=self.toggle_minimi, font=("Helvetica", 8), bg="#7f8c8d", fg="white", relief="flat", pady=0).pack(pady=1)
         for w in [self.mini_frame, self.mini_study_lbl, self.mini_ps_lbl, self.mini_leisure_lbl]:
             w.bind("<Button-1>", self.start_move); w.bind("<B1-Motion>", self.on_move)
 
@@ -130,8 +125,6 @@ class UltimateStudyTimer:
         else:
             self.mini_frame.pack_forget(); self.main_frame.pack(fill="both", expand=True)
             self.root.overrideredirect(False); self.root.geometry("340x530"); self.is_mini_mode = False
-            # 복귀 시 제목 다시 설정
-            self.root.title(f"순공 & 공놀 & 여가 측정기 v{self.version}")
         self.root.deiconify(); self.root.attributes("-topmost", self.always_on_top_var.get())
 
     def start_timer(self, t_type):
@@ -199,9 +192,12 @@ class UltimateStudyTimer:
     def create_log_ui(self, l_type, title, color, y_off):
         w = tk.Toplevel(self.root); w.overrideredirect(True)
         w.config(highlightbackground=color, highlightthickness=2)
+        # --- [패치 포인트] 너비 260 -> 320으로 확장 ---
+        w.geometry(f"320x170") 
         tk.Label(w, text=f"[{title}]", font=("Helvetica", 8, "bold"), fg=color).pack(pady=2)
         f = tk.Frame(w); f.pack(padx=5, fill="both", expand=True)
-        lb = tk.Listbox(f, font=("Consolas", 8), height=6); lb.pack(side="left", fill="both", expand=True)
+        # 리스트박스 폰트도 가독성을 위해 Consolas 9로 유지
+        lb = tk.Listbox(f, font=("Consolas", 9), height=6); lb.pack(side="left", fill="both", expand=True)
         tk.Button(w, text="삭제", command=lambda: self.delete_log_item(l_type, lb), bg="#f1f2f6", font=("Helvetica", 7)).pack(pady=1)
         self.load_logs_to_ui(l_type, lb); w.attributes("-topmost", self.always_on_top_var.get())
         return w
