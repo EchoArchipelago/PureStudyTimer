@@ -8,7 +8,10 @@ import threading
 class UltimateStudyTimer:
     def __init__(self, root):
         self.root = root
-        self.root.title("순공 & 공놀 & 여가 측정기")
+        
+        # --- [패치 포인트 1] 버전 정보 설정 ---
+        self.version = "1.1.0" 
+        self.root.title(f"순공 & 공놀 & 여가 측정기 v{self.version}")
         
         # --- 데이터 및 설정 초기화 ---
         self.is_mini_mode = False
@@ -41,30 +44,22 @@ class UltimateStudyTimer:
         self.root.geometry("340x530")
         self.root.resizable(False, False) 
         
-        # --- 신규 기능: 메인 창 움직임 감지 이벤트 바인딩 ---
+        # --- [패치 포인트 2] 자석 기능: 메인 창 움직임 감지 ---
         self.root.bind("<Configure>", self.on_main_window_move)
         
         self.update_clock()
 
-    # --- 신규 기능: 메인 창을 따라오는 자석 로직 ---
+    # --- 자석 로직 (창 위치 동기화) ---
     def on_main_window_move(self, event):
-        """메인 창이 움직일 때 실행되는 함수"""
-        # 메인 창이 움직인 것인지 확인하고, 기록창이 열려있을 때만 위치 갱신
         if event.widget == self.root and not self.is_mini_mode:
             self.refresh_log_positions()
 
     def refresh_log_positions(self):
-        """기록창들의 위치를 메인 창 옆으로 강제 이동"""
-        main_x = self.root.winfo_x()
-        main_y = self.root.winfo_y()
-        
-        # 각 창이 존재할 때만 새 좌표(main_x + 345)로 업데이트
+        main_x, main_y = self.root.winfo_x(), self.root.winfo_y()
         if self.study_log_window and tk.Toplevel.winfo_exists(self.study_log_window):
             self.study_log_window.geometry(f"+{main_x + 345}+{main_y}")
-            
         if self.ps_log_window and tk.Toplevel.winfo_exists(self.ps_log_window):
             self.ps_log_window.geometry(f"+{main_x + 345}+{main_y + 180}")
-            
         if self.leisure_log_window and tk.Toplevel.winfo_exists(self.leisure_log_window):
             self.leisure_log_window.geometry(f"+{main_x + 345}+{main_y + 360}")
 
@@ -135,6 +130,8 @@ class UltimateStudyTimer:
         else:
             self.mini_frame.pack_forget(); self.main_frame.pack(fill="both", expand=True)
             self.root.overrideredirect(False); self.root.geometry("340x530"); self.is_mini_mode = False
+            # 복귀 시 제목 다시 설정
+            self.root.title(f"순공 & 공놀 & 여가 측정기 v{self.version}")
         self.root.deiconify(); self.root.attributes("-topmost", self.always_on_top_var.get())
 
     def start_timer(self, t_type):
@@ -185,17 +182,15 @@ class UltimateStudyTimer:
 
     def toggle_always_on_top(self): 
         self.root.attributes("-topmost", self.always_on_top_var.get())
-        # 기록창들도 항상 위 상태 동기화
         for w in [self.study_log_window, self.ps_log_window, self.leisure_log_window]:
-            if w and tk.Toplevel.winfo_exists(w):
-                w.attributes("-topmost", self.always_on_top_var.get())
+            if w and tk.Toplevel.winfo_exists(w): w.attributes("-topmost", self.always_on_top_var.get())
 
     def toggle_log_windows(self):
         if self.show_log_var.get():
             self.study_log_window = self.create_log_ui("study", "순공", "blue", 0)
             self.ps_log_window = self.create_log_ui("ps", "공놀", "#8e44ad", 180)
             self.leisure_log_window = self.create_log_ui("leisure", "여가", "green", 360)
-            self.refresh_log_positions() # 창을 켤 때 즉시 위치 보정
+            self.refresh_log_positions() 
         else:
             for w in [self.study_log_window, self.ps_log_window, self.leisure_log_window]:
                 if w and tk.Toplevel.winfo_exists(w): w.destroy()
